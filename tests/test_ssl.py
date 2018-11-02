@@ -8,7 +8,7 @@
 import pytest
 
 from gunicorn.config import (
-    KeyFile, CertFile, SSLVersion, CACerts, SuppressRaggedEOFs,
+    KeyFile, CertFile, SSLVersion, SSLContext, CACerts, SuppressRaggedEOFs,
     DoHandshakeOnConnect, Setting, Ciphers,
 )
 
@@ -38,6 +38,14 @@ def test_ssl_version():
     assert SSLVersion.section == 'SSL'
     assert SSLVersion.cli == ['--ssl-version']
     assert SSLVersion.default == ssl.PROTOCOL_SSLv23
+
+
+def test_ssl_context():
+    assert issubclass(SSLContext, Setting)
+    assert SSLContext.name == 'ssl_context'
+    assert SSLContext.section is None
+    assert SSLContext.cli is None
+    assert SSLContext.default is None
 
 
 def test_cacerts():

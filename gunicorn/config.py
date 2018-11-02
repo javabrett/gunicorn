@@ -13,6 +13,7 @@ import os
 import pwd
 import re
 import shlex
+import socket
 import ssl
 import sys
 import textwrap
@@ -159,6 +160,17 @@ class Config(object):
     @property
     def is_ssl(self):
         return self.certfile or self.keyfile
+
+    def ssl_context_or_default(self):
+        if not self.is_ssl:
+            raise RuntimeError("ssl_context called when not is_ssl")
+        if self.ssl_context is None:
+            ssl_context_setting = SSLContext()
+            sock = ssl.SSLSocket(sock=socket.socket(), server_side=True, **self.ssl_options)
+            ssl_context_setting.set(sock.context)
+            self.settings["ssl_context"] = ssl_context_setting
+
+        return self.ssl_context
 
     @property
     def ssl_options(self):
@@ -364,6 +376,11 @@ def validate_ssl_version(val):
 
     raise ValueError("Invalid ssl_version: %s. Valid options: %s"
                      % (val, ', '.join(ssl_versions)))
+
+
+def validate_ssl_context(val):
+    assert val is None or isinstance(val, ssl.SSLContext)
+    return val
 
 
 def validate_string(val):
@@ -1966,6 +1983,17 @@ class Ciphers(Setting):
     default = 'TLSv1'
     desc = """\
     Ciphers to use (see stdlib ssl module's)
+    """
+
+
+class SSLContext(Setting):
+    name = "ssl_context"
+    section = None  # don't include in ssl_options
+    validator = validate_ssl_context
+    type = ssl.SSLContext
+    default = None
+    desc = """\
+    An ssl.SSLContext instance to be used to wrap sockets for SSL/TLS.
     """
 
 

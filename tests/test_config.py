@@ -4,6 +4,7 @@
 # See the NOTICE for more information.
 
 import os
+import ssl
 import sys
 
 import pytest
@@ -26,6 +27,10 @@ def alt_cfg_file():
     return os.path.join(dirname, "config", "test_cfg_alt.py")
 def paster_ini():
     return os.path.join(dirname, "..", "examples", "frameworks", "pylonstest", "nose.ini")
+def server_crt():
+    return os.path.join(dirname, "..", "examples", "server.crt")
+def server_key():
+    return os.path.join(dirname, "..", "examples", "server.key")
 
 
 class AltArgs(object):
@@ -236,7 +241,22 @@ def test_load_config_module():
     assert app.cfg.bind == ["unix:/tmp/bar/baz"]
     assert app.cfg.workers == 3
     assert app.cfg.proc_name == "fooey"
-
+    assert app.cfg.is_ssl
+    context = app.cfg.ssl_context_or_default()
+    assert context.protocol == ssl.PROTOCOL_TLSv1_2
+    ciphers_string = ""
+    for cipher in context.get_ciphers():
+        ciphers_string += (cipher["name"]) + ":"
+    assert ciphers_string == ("DHE-RSA-AES256-GCM-SHA384:"
+                         "DHE-RSA-AES128-GCM-SHA256:"
+                         "ECDHE-RSA-AES256-GCM-SHA384:"
+                         "ECDHE-RSA-AES128-GCM-SHA256:"
+                         "DHE-RSA-AES256-SHA256:"
+                         "DHE-RSA-AES128-SHA256:"
+                         "ECDHE-RSA-AES256-SHA384:"
+                         "ECDHE-RSA-AES128-SHA256:")
+    context2 = app.cfg.ssl_context_or_default()
+    assert id(context) == id(context2)
 
 def test_cli_overrides_config():
     with AltArgs(["prog_name", "-c", cfg_file(), "-b", "blarney"]):
@@ -342,6 +362,7 @@ def test_config_file_environment_variable(monkeypatch):
     with AltArgs(["prog_name", "--config", cfg_file()]):
         app = NoConfigApp()
     assert app.cfg.proc_name == "fooey"
+    assert app.cfg.is_ssl
     assert app.cfg.config == cfg_file()
 
 def test_invalid_enviroment_variables_config(monkeypatch, capsys):
@@ -431,7 +452,30 @@ def _test_ssl_version(options, expected):
     assert app.cfg.ssl_version == expected
 
 
+def test_ssl_context_or_default():
+    cmdline = ["prog_name",
+               "--certfile", server_crt(),
+               "--keyfile", server_key(),
+               "--ssl-version", "TLSv1_2"]
+    with AltArgs(cmdline):
+        app = NoConfigApp()
+    assert app.cfg.is_ssl
+    assert app.cfg.ssl_version == ssl.PROTOCOL_TLSv1_2
+    context = app.cfg.ssl_context_or_default()
+    assert context.protocol == ssl.PROTOCOL_TLSv1_2
+    context2 = app.cfg.ssl_context_or_default()
+    assert id(context) == id(context2)
+
+
+def test_ssl_context_or_default_when_not_is_ssl():
+    c = config.Config()
+    assert not c.is_ssl
+    with pytest.raises(RuntimeError):
+        c.ssl_context_or_default()
+
+
 def test_bind_fd():
     with AltArgs(["prog_name", "-b", "fd://42"]):
         app = NoConfigApp()
     assert app.cfg.bind == ["fd://42"]
+
