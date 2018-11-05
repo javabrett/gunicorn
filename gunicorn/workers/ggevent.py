@@ -84,7 +84,7 @@ class GeventWorker(AsyncWorker):
         ssl_args = {}
 
         if self.cfg.is_ssl:
-            ssl_args = dict(server_side=True, **self.cfg.ssl_options)
+            ssl_args = dict(server_side=True, ssl_options=self.cfg.ssl_context_or_default())
 
         for s in self.sockets:
             s.setblocking(1)

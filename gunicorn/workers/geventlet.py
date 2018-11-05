@@ -110,8 +110,8 @@ class EventletWorker(AsyncWorker):
 
     def handle(self, listener, client, addr):
         if self.cfg.is_ssl:
-            client = eventlet.wrap_ssl(client, server_side=True,
-                                       **self.cfg.ssl_options)
+            context = self.cfg.ssl_context_or_default()
+            client = context.wrap_socket(client, server_side=True)
 
         super(EventletWorker, self).handle(listener, client, addr)
 

@@ -135,16 +135,12 @@ class TornadoWorker(Worker):
             server_class = _HTTPServer
 
         if self.cfg.is_ssl:
-            _ssl_opt = copy.deepcopy(self.cfg.ssl_options)
-            # tornado refuses initialization if ssl_options contains following
-            # options
-            del _ssl_opt["do_handshake_on_connect"]
-            del _ssl_opt["suppress_ragged_eofs"]
             if TORNADO5:
-                server = server_class(app, ssl_options=_ssl_opt)
+                server = server_class(app,
+                                      ssl_options=self.cfg.ssl_context_or_default())
             else:
                 server = server_class(app, io_loop=self.ioloop,
-                                      ssl_options=_ssl_opt)
+                                      ssl_options=self.cfg.ssl_context_or_default())
         else:
             if TORNADO5:
                 server = server_class(app)
